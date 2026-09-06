@@ -1,17 +1,21 @@
 # MacAutoTranslate
 
-MacAutoTranslate 是一个原生 Swift 编写的 macOS 菜单栏翻译工具。按 `⇧⌘6` 打开 Spotlight 风格浮窗，输入多行文本后按 `⇧T` 翻译；结果自动复制到剪贴板。
+MacAutoTranslate 是一个原生 Swift 编写的 macOS 菜单栏翻译工具。按 `⇧⌘6` 打开 Spotlight 风格浮窗，输入多行文本后按 `⇧Enter` 翻译；结果自动复制到剪贴板。
 
 项目不仅包含 UI，还把翻译能力拆成了可复用 Swift 库、localhost HTTP API、命令行服务和 MCP Server。
 
 ## 功能
 
 - `⇧⌘6` 全局快捷键显示/隐藏浮窗（Carbon hot key，不需要辅助功能权限）
-- `⇧T` 或图标按钮执行翻译；结果自动复制，亦可手动点击复制图标
+- 源文本框中 `Enter` 换行，`⇧Enter` 或图标按钮执行翻译
+- 点击浮窗以外的区域自动关闭浮窗，不遮挡其他应用
 - 保留上一次输入和翻译；首次启动为空
-- 输入与结果支持多行，浮窗随内容增高
+- 输入与结果支持多行并按真实文字排版自动增高，不截断内容
+- 清空源文本时同步清空翻译结果
 - 自动识别中文/中文混合文本并翻译为英文；其他文本翻译为中文
-- 可编辑源语言、目标语言；手动编辑后关闭自动方向
+- “自动语言方向”默认开启；可编辑源语言、目标语言，手动编辑后自动关闭该选项
+- 翻译成功后自动复制到剪贴板，亦可点击复制图标
+- 原生毛玻璃背景、统一圆角和等距四边边距
 - OpenAI Responses API 与 Anthropic Messages API
 - 内置 Kimi Code（Anthropic 兼容）预设
 - 菜单栏设置：provider、Base URL、model、API key、prompt、timeout、服务端口、连接测试

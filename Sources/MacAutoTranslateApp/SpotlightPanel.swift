@@ -7,7 +7,7 @@ final class SpotlightPanel: NSPanel {
 }
 
 @MainActor
-final class SpotlightPanelController {
+final class SpotlightPanelController: NSObject, NSWindowDelegate {
     private let panel: SpotlightPanel
     private let hostingController: NSHostingController<SpotlightView>
 
@@ -25,9 +25,11 @@ final class SpotlightPanelController {
             controller?.resize(to: height)
         }
         hostingController = NSHostingController(rootView: rootView)
+        super.init()
         controller = self
 
         panel.contentViewController = hostingController
+        panel.delegate = self
         panel.backgroundColor = .clear
         panel.isOpaque = false
         // SwiftUI draws the single rounded shadow. A second AppKit window shadow
@@ -35,7 +37,7 @@ final class SpotlightPanelController {
         panel.hasShadow = false
         panel.level = .floating
         panel.isFloatingPanel = true
-        panel.hidesOnDeactivate = false
+        panel.hidesOnDeactivate = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
         panel.animationBehavior = .utilityWindow
         panel.isMovableByWindowBackground = true
@@ -60,6 +62,10 @@ final class SpotlightPanelController {
 
     func hide() {
         panel.orderOut(nil)
+    }
+
+    func windowDidResignKey(_ notification: Notification) {
+        hide()
     }
 
     private func resize(to contentHeight: CGFloat) {

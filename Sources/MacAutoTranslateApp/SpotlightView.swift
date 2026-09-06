@@ -61,7 +61,10 @@ struct SpotlightView: View {
                     text: $state.input,
                     isEditable: true,
                     font: .systemFont(ofSize: 20, weight: .regular),
-                    verticalInset: 5
+                    verticalInset: 5,
+                    onTranslate: {
+                        Task { await state.translate() }
+                    }
                 )
                     .focused($inputFocused)
                     .frame(minHeight: 46)
@@ -78,9 +81,9 @@ struct SpotlightView: View {
                     }
                 }
                 .buttonStyle(.borderless)
-                .keyboardShortcut("t", modifiers: [.shift])
+                .keyboardShortcut(.return, modifiers: [.shift])
                 .disabled(state.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || state.isTranslating)
-                .help("翻译（⇧T）")
+                .help("翻译（⇧Enter）")
                 .accessibilityLabel("翻译")
                 .padding(.top, 7)
             }
@@ -98,13 +101,13 @@ struct SpotlightView: View {
                     set: { state.setTargetLanguage($0) }
                 ))
                 Spacer()
-                Toggle("自动", isOn: Binding(
+                Toggle("自动语言方向", isOn: Binding(
                     get: { state.usesAutomaticDirection },
                     set: { state.setAutomaticDirection($0) }
                 ))
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .help("按输入内容自动设置翻译方向")
+                .help("包含中文时译为英文；其他语言译为中文。手动修改语言会关闭此选项。")
             }
         }
         .padding(SpotlightLayout.contentPadding)
@@ -128,7 +131,8 @@ struct SpotlightView: View {
                         text: Binding(get: { state.result }, set: { _ in }),
                         isEditable: false,
                         font: .systemFont(ofSize: 17, weight: .regular),
-                        verticalInset: 4
+                        verticalInset: 4,
+                        onTranslate: nil
                     )
                     .frame(minHeight: 28)
                     .accessibilityLabel("翻译结果")

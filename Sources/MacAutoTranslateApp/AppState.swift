@@ -29,10 +29,21 @@ final class AppState: ObservableObject {
     }
 
     func inputDidChange() {
+        if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            result = ""
+            errorMessage = nil
+            copyConfirmation = false
+            isTranslating = false
+        }
         if usesAutomaticDirection {
-            let direction = LanguageDetector.automaticDirection(for: input)
-            sourceLanguage = direction.source
-            targetLanguage = direction.target
+            if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                sourceLanguage = "中文"
+                targetLanguage = "英文"
+            } else {
+                let direction = LanguageDetector.automaticDirection(for: input)
+                sourceLanguage = direction.source
+                targetLanguage = direction.target
+            }
         }
         persistSession()
     }
@@ -57,27 +68,38 @@ final class AppState: ObservableObject {
 
     func translate() async {
         guard !isTranslating else { return }
+        let submittedInput = input
         isTranslating = true
         errorMessage = nil
-        defer { isTranslating = false }
+        defer {
+            if input == submittedInput {
+                isTranslating = false
+            }
+        }
 
         do {
             let response = try await client.translate(
                 TranslationRequest(
-                    text: input,
+                    text: submittedInput,
                     sourceLanguage: sourceLanguage,
                     targetLanguage: targetLanguage
                 ),
                 configuration: store.loadConfiguration(),
                 credentials: store.loadCredentials()
             )
+            guard input == submittedInput,
+                  !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return
+            }
             result = response.translatedText
             sourceLanguage = response.sourceLanguage
             targetLanguage = response.targetLanguage
             copyResult()
             persistSession()
         } catch {
-            errorMessage = error.localizedDescription
+            if input == submittedInput {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
