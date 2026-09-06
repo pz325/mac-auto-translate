@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and bundle version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
+          if [[ "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Info.plist version ${VERSION}." >&2
+            exit 1
+          fi
+          echo "VERSION=${VERSION}" >> "${GITHUB_ENV}"
+
+      - name: Test
+        run: swift test
+
+      - name: Scan for secrets
+        run: ./scripts/check-secrets.sh
+
+      - name: Build universal macOS app
+        run: MAC_AUTO_TRANSLATE_UNIVERSAL=1 ./scripts/build-app.sh
+
+      - name: Verify app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          codesign --verify --deep --strict --verbose=2 dist/MacAutoTranslate.app
+          ARCHITECTURES=$(lipo -archs dist/MacAutoTranslate.app/Contents/MacOS/MacAutoTranslate)
+          [[ " ${ARCHITECTURES} " == *" arm64 "* ]]
+          [[ " ${ARCHITECTURES} " == *" x86_64 "* ]]
+
+      - name: Package release files
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="MacAutoTranslate-${VERSION}-macos-universal.zip"
+          mkdir -p release
+          ditto -c -k --sequesterRsrc --keepParent dist/MacAutoTranslate.app "release/${PACKAGE}"
+          (
+            cd release
+            shasum -a 256 "${PACKAGE}" > "${PACKAGE}.sha256"
+          )
+          echo "package=${PACKAGE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE: ${{ steps.package.outputs.package }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "release/${PACKAGE}#Universal macOS app" \
+            "release/${PACKAGE}.sha256#SHA-256 checksum" \
+            --verify-tag \
+            --generate-notes \
+            --title "MacAutoTranslate ${VERSION}"

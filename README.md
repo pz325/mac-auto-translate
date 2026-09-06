@@ -38,6 +38,12 @@ swift run MacAutoTranslate
 open dist/MacAutoTranslate.app
 ```
 
+构建同时支持 Apple Silicon 和 Intel 的通用版本：
+
+```bash
+MAC_AUTO_TRANSLATE_UNIVERSAL=1 ./scripts/build-app.sh
+```
+
 单独运行核心 HTTP 服务：
 
 ```bash
@@ -51,6 +57,24 @@ swift run mac-auto-translate-mcp
 ```
 
 详细说明见 [PRD](docs/PRD.md)、[架构](docs/ARCHITECTURE.md)、[API](docs/API.md)、[MCP](docs/MCP.md) 和 [安全](docs/SECURITY.md)。
+
+## GitHub 自动发布
+
+发布版本以 `Resources/Info.plist` 中的 `CFBundleShortVersionString` 为准。先更新版本号并将变更提交、推送到当前分支，然后执行：
+
+```bash
+./scripts/release.sh --dry-run
+./scripts/release.sh
+```
+
+脚本会检查工作区、远程分支、版本标签、敏感信息和单元测试，然后创建并推送 `vX.Y.Z` 标签。GitHub 的 Release workflow 会自动：
+
+- 验证标签与 App 版本一致
+- 运行测试和敏感信息扫描
+- 构建 Apple Silicon 与 Intel 通用 App
+- 验证签名及双架构二进制
+- 生成 ZIP 和 SHA-256 校验文件
+- 创建带自动发布说明的 GitHub Release
 
 ## 配置位置
 
