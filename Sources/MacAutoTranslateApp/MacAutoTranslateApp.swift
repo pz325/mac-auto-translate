@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panelController: SpotlightPanelController?
     private var hotKeyManager: GlobalHotKeyManager?
     private var httpServer: TranslationHTTPServer?
+    private var statusItemController: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -30,6 +31,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             state.serviceMessage = "本地 API 未启动：\(error.localizedDescription)"
         }
+
+        statusItemController = StatusItemController(
+            statusText: { [weak self] in
+                guard let self else { return "本地 API：状态未知" }
+                if let message = self.state.serviceMessage {
+                    return message
+                }
+                let port = self.state.store.loadConfiguration().servicePort
+                return "本地 API：127.0.0.1:\(port)"
+            },
+            openTranslator: { [weak self] in self?.showTranslator() },
+            openSettings: {
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            },
+            quit: { NSApp.terminate(nil) }
+        )
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -45,28 +63,6 @@ struct MacAutoTranslateApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            Button("打开翻译浮窗  ⇧⌘6", action: appDelegate.showTranslator)
-            Divider()
-            if let message = appDelegate.state.serviceMessage {
-                Text(message)
-            } else {
-                Text("本地 API：127.0.0.1:\(appDelegate.state.store.loadConfiguration().servicePort)")
-            }
-            Divider()
-            Button("设置…") {
-                NSApp.activate(ignoringOtherApps: true)
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            }
-            .keyboardShortcut(",")
-            Button("退出 MacAutoTranslate") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
-        } label: {
-            Image("MenuBarIcon")
-                .renderingMode(.original)
-                .accessibilityLabel("MacAutoTranslate")
-        }
-
         Settings {
             SettingsView(store: appDelegate.state.store)
         }
