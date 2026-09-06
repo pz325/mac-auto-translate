@@ -45,7 +45,7 @@ struct MacAutoTranslateApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("MacAutoTranslate", image: "MenuBarIcon") {
+        MenuBarExtra {
             Button("打开翻译浮窗  ⇧⌘6", action: appDelegate.showTranslator)
             Divider()
             if let message = appDelegate.state.serviceMessage {
@@ -61,6 +61,10 @@ struct MacAutoTranslateApp: App {
             .keyboardShortcut(",")
             Button("退出 MacAutoTranslate") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
+        } label: {
+            Image("MenuBarIcon")
+                .renderingMode(.original)
+                .accessibilityLabel("MacAutoTranslate")
         }
 
         Settings {
