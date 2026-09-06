@@ -13,7 +13,7 @@ final class SpotlightPanelController {
 
     init(state: AppState) {
         let panel = SpotlightPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 640, height: 210),
+            contentRect: NSRect(x: 0, y: 0, width: SpotlightLayout.windowWidth, height: 210),
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -30,7 +30,9 @@ final class SpotlightPanelController {
         panel.contentViewController = hostingController
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = true
+        // SwiftUI draws the single rounded shadow. A second AppKit window shadow
+        // creates a larger rectangular outline with visually mismatched corners.
+        panel.hasShadow = false
         panel.level = .floating
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false

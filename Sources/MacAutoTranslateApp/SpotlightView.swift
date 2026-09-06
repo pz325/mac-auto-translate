@@ -1,9 +1,18 @@
 import SwiftUI
 
+enum SpotlightLayout {
+    static let contentWidth: CGFloat = 640
+    static let cornerRadius: CGFloat = 28
+    static let contentPadding: CGFloat = 20
+    static let shadowInset: CGFloat = 24
+    static let windowWidth = contentWidth + shadowInset * 2
+}
+
 struct SpotlightView: View {
     @ObservedObject var state: AppState
     let onHeightChange: (CGFloat) -> Void
     @FocusState private var inputFocused: Bool
+    @State private var resultTextHeight: CGFloat = 28
 
     var body: some View {
         VStack(spacing: 0) {
@@ -14,14 +23,14 @@ struct SpotlightView: View {
                 resultSection
             }
         }
-        .frame(width: 640)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .frame(width: SpotlightLayout.contentWidth)
+        .background(.ultraThinMaterial)
+        .clipShape(panelShape)
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
+            panelShape.strokeBorder(.white.opacity(0.18), lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.26), radius: 24, y: 12)
-        .padding(28)
+        .shadow(color: .black.opacity(0.24), radius: 20, y: 8)
+        .padding(SpotlightLayout.shadowInset)
         .background(
             GeometryReader { proxy in
                 Color.clear.preference(key: PanelHeightKey.self, value: proxy.size.height)
@@ -32,6 +41,10 @@ struct SpotlightView: View {
         .onReceive(NotificationCenter.default.publisher(for: .focusTranslationInput)) { _ in
             inputFocused = true
         }
+    }
+
+    private var panelShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: SpotlightLayout.cornerRadius, style: .continuous)
     }
 
     private var inputSection: some View {
@@ -89,8 +102,7 @@ struct SpotlightView: View {
                 .help("按输入内容自动设置翻译方向")
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(SpotlightLayout.contentPadding)
     }
 
     private var resultSection: some View {
@@ -107,11 +119,23 @@ struct SpotlightView: View {
                     .textSelection(.enabled)
             } else {
                 HStack(alignment: .top, spacing: 12) {
-                    Text(state.result)
-                        .font(.system(size: 17))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: adaptiveHeight(for: state.result, minimum: 42, maximum: 280), alignment: .topLeading)
+                    ScrollView(.vertical) {
+                        Text(state.result)
+                            .font(.system(size: 17))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background {
+                                GeometryReader { proxy in
+                                    Color.clear.preference(key: ResultTextHeightKey.self, value: proxy.size.height)
+                                }
+                            }
+                    }
+                    .scrollIndicators(resultTextHeight > 280 ? .visible : .hidden)
+                    .frame(height: min(max(resultTextHeight, 28), 280))
+                    .onPreferenceChange(ResultTextHeightKey.self) { height in
+                        resultTextHeight = height
+                    }
 
                     Button(action: state.copyResult) {
                         Image(systemName: state.copyConfirmation ? "checkmark" : "doc.on.doc")
@@ -123,8 +147,7 @@ struct SpotlightView: View {
                 }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(SpotlightLayout.contentPadding)
     }
 
     private func adaptiveHeight(for text: String, minimum: CGFloat, maximum: CGFloat) -> CGFloat {
@@ -154,5 +177,10 @@ private struct LanguageField: View {
 
 private struct PanelHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 210
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private struct ResultTextHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 28
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
