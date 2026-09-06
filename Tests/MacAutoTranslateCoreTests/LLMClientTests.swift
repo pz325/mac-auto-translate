@@ -18,7 +18,7 @@ final class LLMClientTests: XCTestCase {
             XCTAssertEqual(object["store"] as? Bool, false)
             XCTAssertTrue((object["instructions"] as? String)?.contains("英文") == true)
             let response = """
-            {"output":[{"type":"message","content":[{"type":"output_text","text":"你好"}]}]}
+            {"output":[{"type":"reasoning","summary":[]},{"type":"message","content":[{"type":"output_text","text":"你好"}]}]}
             """.data(using: .utf8)!
             return (200, response)
         }
@@ -39,7 +39,7 @@ final class LLMClientTests: XCTestCase {
             XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), "kimi-test-key")
             XCTAssertEqual(request.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
             let response = """
-            {"content":[{"type":"text","text":"Hello, world"}]}
+            {"content":[{"type":"thinking","thinking":"summary","signature":"opaque"},{"type":"text","text":"Hello, world"}]}
             """.data(using: .utf8)!
             return (200, response)
         }
@@ -68,6 +68,21 @@ final class LLMClientTests: XCTestCase {
         } catch {
             XCTAssertFalse(error.localizedDescription.contains("super-secret"))
             XCTAssertTrue(error.localizedDescription.contains("[REDACTED]"))
+        }
+    }
+
+    func testMalformedSuccessResponseReturnsActionableError() async {
+        MockURLProtocol.handler = { _ in (200, Data("{\"unexpected\":true}".utf8)) }
+        do {
+            _ = try await makeClient().translate(
+                TranslationRequest(text: "hello"),
+                configuration: LLMConfiguration(provider: .openAI, baseURL: "https://api.openai.com", model: "test"),
+                credentials: Credentials(apiKey: "test-key")
+            )
+            XCTFail("Expected invalid response error")
+        } catch {
+            XCTAssertEqual(error as? MacAutoTranslateError, .invalidResponse)
+            XCTAssertEqual(error.localizedDescription, "LLM 返回了无法解析的响应。")
         }
     }
 

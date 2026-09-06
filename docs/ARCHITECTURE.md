@@ -41,6 +41,8 @@
 - OpenAI：`POST {base}/v1/responses`；`instructions` 为渲染后的 prompt，`input` 为原文，`store=false`。
 - Anthropic：`POST {base}/v1/messages`；`system` 为 prompt，`messages[0]` 为原文。
 - Endpoint resolver 接受 host、`/v1` 或已经完整 endpoint 的 Base URL，避免重复 `/v1`。
+- Provider 响应按异构内容块解析：忽略 `thinking`、`reasoning`、tool 等非文本块，仅拼接最终文本块。
+- LLM 使用无磁盘缓存的 ephemeral URLSession，避免原文和译文进入 HTTP cache。
 
 ## 服务生命周期
 

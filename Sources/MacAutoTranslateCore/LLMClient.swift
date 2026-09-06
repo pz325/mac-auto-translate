@@ -7,8 +7,15 @@ import FoundationNetworking
 public struct LLMClient: Sendable {
     private let session: URLSession
 
-    public init(session: URLSession = .shared) {
-        self.session = session
+    public init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.urlCache = nil
+            configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+            self.session = URLSession(configuration: configuration)
+        }
     }
 
     public func translate(
@@ -28,7 +35,7 @@ public struct LLMClient: Sendable {
         let prompt = PromptRenderer.render(template: configuration.prompt, source: source, target: target)
         let url = try EndpointResolver.endpoint(for: configuration.provider, baseURL: configuration.baseURL)
 
-        var urlRequest = URLRequest(url: url)
+        var urlRequest = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         urlRequest.httpMethod = "POST"
         urlRequest.timeoutInterval = max(1, Double(configuration.timeoutMilliseconds) / 1_000)
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -66,11 +73,17 @@ public struct LLMClient: Sendable {
         }
 
         let translated: String
-        switch configuration.provider {
-        case .openAI:
-            translated = try Self.parseOpenAI(data)
-        case .anthropic:
-            translated = try Self.parseAnthropic(data)
+        do {
+            switch configuration.provider {
+            case .openAI:
+                translated = try Self.parseOpenAI(data)
+            case .anthropic:
+                translated = try Self.parseAnthropic(data)
+            }
+        } catch let error as MacAutoTranslateError {
+            throw error
+        } catch {
+            throw MacAutoTranslateError.invalidResponse
         }
 
         guard !translated.isEmpty else { throw MacAutoTranslateError.noTranslatedText }
@@ -96,9 +109,9 @@ public struct LLMClient: Sendable {
         let decoded = try JSONDecoder().decode(OpenAIResponse.self, from: data)
         let pieces = decoded.output
             .filter { $0.type == "message" }
-            .flatMap(\.content)
+            .flatMap { $0.content ?? [] }
             .filter { $0.type == "output_text" }
-            .map(\.text)
+            .compactMap(\.text)
         let result = pieces.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !result.isEmpty else { throw MacAutoTranslateError.noTranslatedText }
         return result
@@ -108,7 +121,7 @@ public struct LLMClient: Sendable {
         let decoded = try JSONDecoder().decode(AnthropicResponse.self, from: data)
         let result = decoded.content
             .filter { $0.type == "text" }
-            .map(\.text)
+            .compactMap(\.text)
             .joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !result.isEmpty else { throw MacAutoTranslateError.noTranslatedText }
@@ -141,10 +154,10 @@ private struct OpenAIResponse: Decodable {
     struct Output: Decodable {
         struct Content: Decodable {
             let type: String
-            let text: String
+            let text: String?
         }
         let type: String
-        let content: [Content]
+        let content: [Content]?
     }
     let output: [Output]
 }
@@ -170,7 +183,7 @@ private struct AnthropicRequest: Encodable {
 private struct AnthropicResponse: Decodable {
     struct Content: Decodable {
         let type: String
-        let text: String
+        let text: String?
     }
     let content: [Content]
 }
