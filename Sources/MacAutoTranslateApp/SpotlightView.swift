@@ -12,7 +12,6 @@ struct SpotlightView: View {
     @ObservedObject var state: AppState
     let onHeightChange: (CGFloat) -> Void
     @FocusState private var inputFocused: Bool
-    @State private var resultTextHeight: CGFloat = 28
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,7 +23,10 @@ struct SpotlightView: View {
             }
         }
         .frame(width: SpotlightLayout.contentWidth)
-        .background(.ultraThinMaterial)
+        .background {
+            GlassBackgroundView()
+                .overlay(.white.opacity(0.06))
+        }
         .clipShape(panelShape)
         .overlay {
             panelShape.strokeBorder(.white.opacity(0.18), lineWidth: 1)
@@ -55,11 +57,14 @@ struct SpotlightView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 9)
 
-                TextEditor(text: $state.input)
-                    .font(.system(size: 20, weight: .regular, design: .rounded))
-                    .scrollContentBackground(.hidden)
+                AutoSizingTextView(
+                    text: $state.input,
+                    isEditable: true,
+                    font: .systemFont(ofSize: 20, weight: .regular),
+                    verticalInset: 5
+                )
                     .focused($inputFocused)
-                    .frame(height: adaptiveHeight(for: state.input, minimum: 46, maximum: 190))
+                    .frame(minHeight: 46)
                     .accessibilityLabel("待翻译文本")
                     .onChange(of: state.input) { _ in state.inputDidChange() }
 
@@ -119,23 +124,14 @@ struct SpotlightView: View {
                     .textSelection(.enabled)
             } else {
                 HStack(alignment: .top, spacing: 12) {
-                    ScrollView(.vertical) {
-                        Text(state.result)
-                            .font(.system(size: 17))
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background {
-                                GeometryReader { proxy in
-                                    Color.clear.preference(key: ResultTextHeightKey.self, value: proxy.size.height)
-                                }
-                            }
-                    }
-                    .scrollIndicators(resultTextHeight > 280 ? .visible : .hidden)
-                    .frame(height: min(max(resultTextHeight, 28), 280))
-                    .onPreferenceChange(ResultTextHeightKey.self) { height in
-                        resultTextHeight = height
-                    }
+                    AutoSizingTextView(
+                        text: Binding(get: { state.result }, set: { _ in }),
+                        isEditable: false,
+                        font: .systemFont(ofSize: 17, weight: .regular),
+                        verticalInset: 4
+                    )
+                    .frame(minHeight: 28)
+                    .accessibilityLabel("翻译结果")
 
                     Button(action: state.copyResult) {
                         Image(systemName: state.copyConfirmation ? "checkmark" : "doc.on.doc")
@@ -150,11 +146,6 @@ struct SpotlightView: View {
         .padding(SpotlightLayout.contentPadding)
     }
 
-    private func adaptiveHeight(for text: String, minimum: CGFloat, maximum: CGFloat) -> CGFloat {
-        let explicitLines = max(1, text.components(separatedBy: .newlines).count)
-        let wrappedLines = max(explicitLines, Int(ceil(Double(max(text.count, 1)) / 55.0)))
-        return min(maximum, max(minimum, CGFloat(wrappedLines) * 24 + 14))
-    }
 }
 
 private struct LanguageField: View {
@@ -177,10 +168,5 @@ private struct LanguageField: View {
 
 private struct PanelHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 210
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
-
-private struct ResultTextHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 28
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }

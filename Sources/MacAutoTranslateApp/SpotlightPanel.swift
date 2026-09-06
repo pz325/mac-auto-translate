@@ -63,7 +63,9 @@ final class SpotlightPanelController {
     }
 
     private func resize(to contentHeight: CGFloat) {
-        let height = min(max(contentHeight, 150), 660)
+        // Content height comes from the native text layout. Do not cap it here:
+        // a window-level cap would clip text even though both editors expanded.
+        let height = max(contentHeight, 150)
         guard abs(panel.frame.height - height) > 1 else { return }
         var frame = panel.frame
         let top = frame.maxY
